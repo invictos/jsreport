@@ -1,21 +1,22 @@
-import fileSaver from 'filesaver.js-npm'
-import * as entities from '../entities'
-import * as progress from '../progress'
-import * as ActionTypes from './constants'
-import * as EntitiesActionTypes from '../entities/constants'
-import uid from '../../helpers/uid'
-import api from '../../helpers/api'
-import * as selectors from './selectors'
 import { push } from 'connected-react-router'
+import fileSaver from 'filesaver.js-npm'
 import shortid from 'shortid'
 import ErrorModal from '../../components/Modals/ErrorModal'
-import { openModal } from '../../helpers/openModal'
-import reformatter from '../../helpers/reformatter'
-import { openPreviewWindow, getPreviewWindowOptions } from '../../helpers/previewWindow'
-import { toFile, textAsHtmlParts } from '../../helpers/reportFileInfoPreview'
+import api from '../../helpers/api'
+import crawlEntityPath from '../../helpers/crawlEntityPath'
 import createTemplateRenderFilesHandler from '../../helpers/createTemplateRenderFilesHandler'
 import executeTemplateRender from '../../helpers/executeTemplateRender'
+import { openModal } from '../../helpers/openModal'
+import { getPreviewWindowOptions, openPreviewWindow } from '../../helpers/previewWindow'
+import reformatter from '../../helpers/reformatter'
+import { textAsHtmlParts, toFile } from '../../helpers/reportFileInfoPreview'
 import resolveUrl from '../../helpers/resolveUrl'
+import uid from '../../helpers/uid'
+import * as entities from '../entities'
+import * as EntitiesActionTypes from '../entities/constants'
+import * as progress from '../progress'
+import * as ActionTypes from './constants'
+import * as selectors from './selectors'
 
 import {
   addEvent as addProfileEvent
@@ -61,6 +62,24 @@ export function closeTab (id) {
     }
 
     dispatch(updateHistory())
+  }
+}
+
+export function openEntityTreePath(path){
+  return (dispatch, getState) => {
+    const activeEntity = selectors.getActiveEntity(
+      getState().editor.activeTabKey,
+      getState().editor.tabs,
+      getState().entities
+    )
+
+    const targetEntity = crawlEntityPath(Object.values(getState().entities), path, activeEntity);
+
+    if (!targetEntity) {
+      return;
+    }
+
+    dispatch(openTab({ _id: targetEntity._id }));
   }
 }
 

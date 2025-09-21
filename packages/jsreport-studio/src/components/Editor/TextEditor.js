@@ -1,14 +1,14 @@
-import PropTypes from 'prop-types'
-import React, { Component } from 'react'
-import { connect } from 'react-redux'
-import ChromeTheme from 'monaco-themes/themes/Chrome DevTools.json'
-import MonacoEditor from 'react-monaco-editor'
-import throttle from 'lodash/throttle'
 import debounce from 'lodash/debounce'
-import { reformat } from '../../redux/editor/actions'
+import throttle from 'lodash/throttle'
+import ChromeTheme from 'monaco-themes/themes/Chrome DevTools.json'
+import PropTypes from 'prop-types'
+import { Component } from 'react'
+import MonacoEditor from 'react-monaco-editor'
+import { connect } from 'react-redux'
 import reformatter from '../../helpers/reformatter'
 import { getCurrentTheme } from '../../helpers/theme'
 import { values as configuration } from '../../lib/configuration'
+import { openEntityTreePath, reformat } from '../../redux/editor/actions'
 
 const lastTextEditorMounted = {
   timeoutId: null,
@@ -206,6 +206,40 @@ class TextEditor extends Component {
       })
     })
 
+    // we override the default link provider to allow opening new studio tabs when clicking on entity tree path
+    configuration.tabLinks.rules.forEach((linkConfig) => {
+      monaco.languages.registerLinkProvider(linkConfig.mode, {
+        provideLinks: (model) => {
+          const links = []
+          const lines = model.getLinesContent()
+          for (let lineNumber = 0; lineNumber < lines.length; lineNumber++) {
+            let match
+            while ((match = linkConfig.regex.exec(lines[lineNumber])) !== null) {
+              const path = match[2]
+              const startColumn = match.index + match[0].indexOf(path)
+              const endColumn = startColumn + path.length
+              const link = {
+                range: new monaco.Range(lineNumber + 1, startColumn + 1, lineNumber + 1, endColumn + 1),
+                url: `jsreport-studio://entity-tree-path/${encodeURIComponent(path)}`
+              };
+              links.push(link)
+            }
+          }
+          return { links }
+        }
+      })
+    })
+
+    monaco.editor.registerLinkOpener({
+      open: (uri) => {
+        if (!(uri.scheme === 'jsreport-studio' && uri.authority === 'entity-tree-path')) {
+          return false;
+        }
+        this.props.openEntityTreePath(uri.path.slice(1));
+        return true;
+      }
+    })
+    
     // monkey path setValue option to make it preserve undo stack
     // when editing text editor (by prop change)
     editor.setValue = (newValue) => {
@@ -496,5 +530,6 @@ TextEditor.propTypes = {
 }
 
 export default connect(undefined, {
-  reformat
+  reformat,
+  openEntityTreePath
 }, undefined, { forwardRef: true })(TextEditor)
