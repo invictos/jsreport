@@ -12,6 +12,11 @@ const schemaProperties = {
     default: false,
     description: 'use this option along with `appPath`. it specifies if all jsreport routes should be available with appPath as prefix, therefore making `appPath` the new root url of application'
   },
+  maxConcurentReportRequests: {
+    type: 'number',
+    default: 0,
+    description: 'Maximum number of concurrent POST /api/report requests allowed. If 0 or not set, unlimited. If > 0, metrics are exposed at GET /metrics/concurent-report-requests endpoint.'
+  },
   certificate: {
     type: 'object',
     properties: {
@@ -56,6 +61,12 @@ module.exports = {
             properties: {
               enabled: { type: 'boolean', default: true }
             }
+          }
+          ,
+          maxConcurentReportRequests: {
+            type: 'number',
+            default: 0,
+            description: 'Maximum number of concurrent POST /api/report requests allowed. If 0 or not set, unlimited. If > 0, metrics are exposed at GET /metrics endpoint.'
           }
         }
       }
