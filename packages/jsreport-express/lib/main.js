@@ -130,6 +130,48 @@ const prepareStartExpressApp = function (reporter, app, config) {
 const configureExpressApp = (app, reporter, definition, exposedOptions) => {
   reporter.express.app = app
 
+  // Middleware for limiting concurrent POST /api/report requests
+  const maxConcurentReportRequests = definition.options.maxConcurentReportRequests || 0;
+  if (maxConcurentReportRequests > 0) {
+    reporter.logger.info('Max concurrent report requests set to ' + maxConcurentReportRequests);
+
+    let currentRequests = 0;
+
+    app.use('/api/report', (req, res, next) => {
+      if (req.method !== 'POST') {
+        return next();
+      }
+
+      if (currentRequests >= maxConcurentReportRequests) {
+        res.status(429).send('Too Many Requests');
+        return;
+      }
+
+      currentRequests++;
+
+      let cleanedUp = false;
+      const cleanup = () => {
+        if (!cleanedUp) {
+          cleanedUp = true;
+          if (currentRequests > 0) {
+            currentRequests--;
+          }
+        }
+      };
+
+      res.on('finish', cleanup);
+      res.on('close', cleanup);
+
+      next();
+    });
+
+    app.get('/metrics/concurent-report-requests', (req, res) => {
+      const utilization = currentRequests / maxConcurentReportRequests;
+      res.set('Content-Type', 'text/plain');
+      res.send(`current_report_requests_utilization ${utilization}\nmax_concurrent_report_requests ${maxConcurentReportRequests}\ncurrent_report_requests ${currentRequests}\n`);
+    });
+  }
+
   if (definition.options.trustProxy !== false) {
     app.enable('trust proxy')
 
